@@ -1,0 +1,19 @@
+version: "3.4"
+
+services:
+  projectwserver:
+    image: zxiong89/projectw-web-server
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3000:3000
+    environment:
+      AWS_DEFAULT_REGION: "us-east-2"
+      # This ENV VAR enables credentials
+      # Set it to "/creds" or "/role/<role name>"
+      AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: "/creds"
+      # Enables V3 Metadata
+      ECS_CONTAINER_METADATA_URI: "http://169.254.170.2/v3"

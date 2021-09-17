@@ -1,0 +1,19 @@
+{
+  "name": "projectwserver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./src/server.js",
+  "scripts": {
+    "start": "node ./src/server.js"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.932.0",
+    "express": "^4.17.1",
+    "node": "^16.3.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.12"
+  },
+  "author": "",
+  "license": "ISC"
+}
