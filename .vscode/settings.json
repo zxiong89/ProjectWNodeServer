@@ -1,6 +1,5 @@
 {
     "files.exclude": {
-        "**/src/parseRequests/**/*.js": true,
         "**/src/parseRequests/**/*.js.map": true
     }
 }
