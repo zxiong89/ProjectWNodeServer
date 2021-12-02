@@ -9,15 +9,17 @@ import { TileBag } from "../../board/TileBag";
 import { BoardCache } from "../../board/BoardCache";
 
 export class GameActionCreate implements IGameAction {
-    static readonly MESSAGE_NAME = "Create";
+    private static readonly TEST_USER_1_ID = `us-east-2:3a4e3860-2c22-4a4c-b62d-cf2a2c34f64d`;
+    private static readonly TEST_USER_2_ID = `us-east-2:1ed624d1-9f97-4479-9825-25dbb2b6b707`;
+    static readonly MESSAGE_NAME = `Create`;
     readonly Name = GameActionCreate.MESSAGE_NAME;
     Params: GameCreateParams = { Rows: 7, Cols: 7};
     
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         cache.gameId = `1`;
-        let sessionData = new SessionData({
-            GameId: cache.gameId
-        });
+
+        let sessionData = this.createSessionData();
+        cache.gameId = sessionData.GameId;
         data.push(sessionData);
 
         cache.tileBag = new TileBag();
@@ -33,6 +35,24 @@ export class GameActionCreate implements IGameAction {
 
     constructor(init?: Partial<GameActionCreate>) {
         Object.assign(this, init);
+    }
+
+    private createSessionData(): SessionData {
+        let sessionData = new SessionData({
+            GameId: `1`,
+            OpponentId: this.fetchOpponentId()
+        });
+
+        return sessionData;
+    }
+    
+    private fetchOpponentId(): string {
+        if (typeof this.Params.OpponentId != `undefined` && !this.Params.OpponentId) {
+            return this.Params.OpponentId;
+        }
+
+        return this.Params.UserId == GameActionCreate.TEST_USER_1_ID ? GameActionCreate.TEST_USER_2_ID
+            : GameActionCreate.TEST_USER_1_ID;
     }
 }
 

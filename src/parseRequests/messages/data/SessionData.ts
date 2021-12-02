@@ -7,6 +7,8 @@ export class SessionData implements IGameData {
 
     GameId?: string;
     DisplayName?: string;
+    OpponentId?: string;
+
     Score?: number;
     TotalDamage?: number;
 
