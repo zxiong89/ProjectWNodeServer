@@ -1,4 +1,4 @@
-import { GameActionCreate as requestHandler } from "./messages/actions/GameActionCreate";
+import { GameActionCreate, GameActionCreate as requestHandler } from "./messages/actions/GameActionCreate";
 import { GameActionSubmitWord } from "./messages/actions/GameActionSubmitWord";
 import { IGameAction } from "./messages/actions/IGameAction";
 import { IGameData } from "./messages/data/IGameData";
@@ -58,7 +58,7 @@ async function parseAction(data: IGameData[], action: IGameAction, board: BoardC
 
     switch (action.Name) {
         case requestHandler.MESSAGE_NAME: {
-            let create = new requestHandler(action as requestHandler);
+            let create = new GameActionCreate(action as requestHandler);
             error = await create.parse(data, board);
             break;
         }
