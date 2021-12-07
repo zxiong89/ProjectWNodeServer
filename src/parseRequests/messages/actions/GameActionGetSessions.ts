@@ -13,11 +13,11 @@ export class GameActionGetSessions implements IGameAction {
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         if (!this.Params.UserId)  return `No game Id given`;
 
-        cache.gameId = this.Params.UserId;
+        cache.GameId = this.Params.UserId;
         await cache.getGameState();
         
         let sessionData = new SessionData({
-            GameId: cache.gameId
+            GameId: cache.GameId
         });
         data.push(sessionData);
 
