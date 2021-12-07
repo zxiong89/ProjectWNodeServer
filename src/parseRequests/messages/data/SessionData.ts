@@ -11,7 +11,8 @@ export class SessionData implements IGameData {
     GameId?: string;
     DisplayName?: string;
     IsActive?: boolean;
-    OpponentId?: string;
+
+    PlayerIds?: string[];
 
     Score?: number;
     TotalDamage?: number;
@@ -22,6 +23,9 @@ export class SessionData implements IGameData {
 
     public addSessionDataToParams(params: DynamoDB.DocumentClient.PutItemInput): void {
         if (this.DisplayName) params.Item["displayName"] = JSON.stringify(this.DisplayName);
-        if (this.IsActive) params.Item["isActive"] = JSON.stringify(this.IsActive)
+        if (this.IsActive) params.Item["isActive"] = JSON.stringify(this.IsActive);
+        if (this.PlayerIds) params.Item["playerIds"] = JSON.stringify(this.PlayerIds);
+        if (this.Score) params.Item["score"] = JSON.stringify(this.Score);
+        if (this.TotalDamage) params.Item["totalDamage"] = JSON.stringify(this.TotalDamage);
     }
 }

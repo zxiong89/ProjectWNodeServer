@@ -18,13 +18,16 @@ export class GameActionCreate implements IGameAction {
     Params: GameCreateParams = { Rows: 7, Cols: 7};
     
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
-        cache.SessionData = this.createSessionData(cache);
+        if (!this.Params.UserId) return undefined;
+
+        cache.SessionData = this.createSessionData(this.Params.UserId, cache);
+        cache.GameId = cache.SessionData.GameId;
         data.push(cache.SessionData);
 
-        cache.tileBag = new TileBag();
-        cache.tiles = createGameBoard(this.Params.Rows, this.Params.Cols, cache.tileBag);
+        cache.TileBag = new TileBag();
+        cache.Tiles = createGameBoard(this.Params.Rows, this.Params.Cols, cache.TileBag);
         let boardData = new BoardData({
-            Board: cache.tiles,
+            Board: cache.Tiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
         data.push(boardData);
@@ -36,10 +39,16 @@ export class GameActionCreate implements IGameAction {
         Object.assign(this, init);
     }
 
-    private createSessionData(cache: BoardCache): SessionData {
+    private createSessionData(userId: string, cache: BoardCache): SessionData {
         let sessionData = new SessionData({
             GameId: createSessionUUID(),
-            OpponentId: this.fetchOpponentId()
+            PlayerIds: [
+                userId,
+                this.fetchOpponentId()
+            ],
+            IsActive: true,
+            Score: 0,
+            TotalDamage: 0
         });
 
         return sessionData;
