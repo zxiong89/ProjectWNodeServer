@@ -8,7 +8,7 @@ import { BoardChangeTypesEnum } from "../data/BoardChangeTypesEnum";
 import { TileBag } from "../../board/TileBag";
 import { BoardCache } from "../../board/BoardCache";
 
-const { v1: uuidv1 } = require(`uuid`); // v1 is time-based instead of v4 which is random
+const { v4: uuidRand } = require(`uuid`); // v4 - random to hopefully reduce collision
 
 export class GameActionCreate implements IGameAction {
     private static readonly TEST_USER_1_ID = `us-east-2:b5845163-19e0-4bb1-b391-6f40f0d99458`;
@@ -65,7 +65,7 @@ export class GameActionCreate implements IGameAction {
 }
 
 function createSessionUUID(): string {
-    let uuid = uuidv1();
+    let uuid = uuidRand();
     return uuid;
 }
 
