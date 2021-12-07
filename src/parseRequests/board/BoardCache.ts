@@ -7,15 +7,15 @@ import { TileBag } from "./TileBag";
 const gamesTable = `projectWGames`;
 
 export class BoardCache {
-    client: DynamoDB.DocumentClient;
+    Client: DynamoDB.DocumentClient;
     GameId?: string;
     SessionData?: SessionData;
-    tiles?: TileData[][];
-    tileBag?: TileBag;
+    Tiles?: TileData[][];
+    TileBag?: TileBag;
     dictionary?: WordDictionary;
 
     constructor(client: DynamoDB.DocumentClient) {
-        this.client = client;
+        this.Client = client;
     }
 
     public requestSaveToDB(): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
@@ -31,19 +31,19 @@ export class BoardCache {
         this.SessionData.addSessionDataToParams(params);
         this.addBoardCacheToParams(params);
 
-        return this.client.put(params);
+        return this.Client.put(params);
     }
 
     private addBoardCacheToParams(params: DynamoDB.DocumentClient.PutItemInput): void {
-        if (this.tiles) params.Item["tiles"] = JSON.stringify(this.tiles);
-        if (this.tileBag) params.Item["tileBag"] = JSON.stringify(this.tileBag);
+        if (this.Tiles) params.Item["tiles"] = JSON.stringify(this.Tiles);
+        if (this.TileBag) params.Item["tileBag"] = JSON.stringify(this.TileBag);
     }
 
     public async getGameState(): Promise<boolean> {
         if (!this.GameId) return false;
-        if (this.tiles && this.tileBag) return true;
+        if (this.Tiles && this.TileBag) return true;
 
-        let response = await this.client.get({
+        let response = await this.Client.get({
             TableName: gamesTable,
             Key: {
                 "gameId": this.GameId
@@ -52,8 +52,8 @@ export class BoardCache {
 
         if (!response.Item) return false;
 
-        if (response.Item["tiles"]) this.tiles = await JSON.parse(response.Item["tiles"]);
-        if (response.Item["tileBag"]) this.tileBag = await JSON.parse(response.Item["tileBag"]);
+        if (response.Item["tiles"]) this.Tiles = await JSON.parse(response.Item["tiles"]);
+        if (response.Item["tileBag"]) this.TileBag = await JSON.parse(response.Item["tileBag"]);
         
         return true;
     }

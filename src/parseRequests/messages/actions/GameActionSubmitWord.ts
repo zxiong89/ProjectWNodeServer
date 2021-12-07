@@ -30,7 +30,7 @@ export class GameActionSubmitWord implements IGameAction {
 
         const isCacheUpdated = await cache.getGameState();
         if (!isCacheUpdated) return `Unable to fetch gameState for ${cache.GameId}`;
-        const tileBag = cache.tileBag as TileBag;
+        const tileBag = cache.TileBag as TileBag;
 
         let removal = new BoardData({
             TileDelta: selection,

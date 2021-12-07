@@ -15,17 +15,17 @@ export class GameActionGetState implements IGameAction {
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         if (!this.Params.GameId)  return `No game Id given`;
 
-        if (cache.SessionData) cache.SessionData.GameId = this.Params.GameId;
+        cache.GameId = this.Params.GameId;
         await cache.getGameState();
         
         let sessionData = new SessionData({
-            GameId: cache.SessionData?.GameId
+            GameId: cache.GameId
         });
         data.push(sessionData);
 
-        cache.tileBag = cache.tileBag;
+        cache.TileBag = cache.TileBag;
         let boardData = new BoardData({
-            Board: cache.tiles,
+            Board: cache.Tiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
         data.push(boardData);
