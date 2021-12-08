@@ -8,8 +8,6 @@ import { BoardChangeTypesEnum } from "../data/BoardChangeTypesEnum";
 import { TileBag } from "../../board/TileBag";
 import { BoardCache } from "../../board/BoardCache";
 
-const { v4: uuidRand } = require(`uuid`); // v4 - random to hopefully reduce collision
-
 export class GameActionCreate implements IGameAction {
     private static readonly TEST_USER_1_ID = `us-east-2:b5845163-19e0-4bb1-b391-6f40f0d99458`;
     private static readonly TEST_USER_2_ID = `us-east-2:1ed624d1-9f97-4479-9825-25dbb2b6b707`;
@@ -20,7 +18,9 @@ export class GameActionCreate implements IGameAction {
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         if (!this.Params.UserId) return undefined;
 
-        cache.SessionData = this.createSessionData(this.Params.UserId, cache);
+        cache.SessionData = await SessionData.CreateGameSessionData(cache.DB, this.Params.UserId, this.fetchOpponentId());
+        await cache.SessionData.saveSessionDataToDB(cache.DB).promise();
+
         cache.GameId = cache.SessionData.GameId;
         data.push(cache.SessionData);
 
@@ -38,21 +38,6 @@ export class GameActionCreate implements IGameAction {
     constructor(init?: Partial<GameActionCreate>) {
         Object.assign(this, init);
     }
-
-    private createSessionData(userId: string, cache: BoardCache): SessionData {
-        let sessionData = new SessionData({
-            GameId: createSessionUUID(),
-            PlayerIds: [
-                userId,
-                this.fetchOpponentId()
-            ],
-            IsActive: true,
-            Score: 0,
-            TotalDamage: 0
-        });
-
-        return sessionData;
-    }
     
     private fetchOpponentId(): string {
         if (typeof this.Params.OpponentId != `undefined` && this.Params.OpponentId) {
@@ -62,11 +47,6 @@ export class GameActionCreate implements IGameAction {
         return this.Params.UserId == GameActionCreate.TEST_USER_1_ID ? GameActionCreate.TEST_USER_2_ID
             : GameActionCreate.TEST_USER_1_ID;
     }
-}
-
-function createSessionUUID(): string {
-    let uuid = uuidRand();
-    return uuid;
 }
 
 function createGameBoard(rows: number, cols: number, tileBag: TileBag): TileData[][] {

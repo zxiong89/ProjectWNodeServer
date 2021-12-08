@@ -4,10 +4,12 @@ import { SessionData } from "../messages/data/SessionData";
 import { TileData } from "../messages/data/tiles/TileData";
 import { TileBag } from "./TileBag";
 
-const gamesTable = `projectWGames`;
+const dbTableName = `projectWGames`;
+const dbColTiles = `tiles`;
+const dbColTileBag = `tileBag`;
 
 export class BoardCache {
-    Client: DynamoDB.DocumentClient;
+    DB: DynamoDB.DocumentClient;
     GameId?: string;
     SessionData?: SessionData;
     Tiles?: TileData[][];
@@ -15,45 +17,44 @@ export class BoardCache {
     dictionary?: WordDictionary;
 
     constructor(client: DynamoDB.DocumentClient) {
-        this.Client = client;
+        this.DB = client;
     }
 
     public requestSaveToDB(): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
         if (!this.SessionData || !this.GameId) throw new Error(`Cannot create request to save without gameId`);
 
         let params: DynamoDB.DocumentClient.PutItemInput = {
-            TableName: gamesTable,
+            TableName: dbTableName,
             Item: {
                 "gameId": this.GameId
             }
         }
 
-        this.SessionData.addSessionDataToParams(params);
         this.addBoardCacheToParams(params);
-
-        return this.Client.put(params);
+        return this.DB.put(params);
     }
 
     private addBoardCacheToParams(params: DynamoDB.DocumentClient.PutItemInput): void {
-        if (this.Tiles) params.Item["tiles"] = JSON.stringify(this.Tiles);
-        if (this.TileBag) params.Item["tileBag"] = JSON.stringify(this.TileBag);
+        if (this.Tiles) params.Item[dbColTiles] = JSON.stringify(this.Tiles);
+        if (this.TileBag) params.Item[dbColTileBag] = JSON.stringify(this.TileBag);
     }
 
     public async getGameState(): Promise<boolean> {
         if (!this.GameId) return false;
         if (this.Tiles && this.TileBag) return true;
 
-        let response = await this.Client.get({
-            TableName: gamesTable,
+        let params: DynamoDB.DocumentClient.GetItemInput = {
+            TableName: dbTableName,
             Key: {
                 "gameId": this.GameId
             }
-        }).promise();
+        };
 
+        let response = await this.DB.get(params).promise();
         if (!response.Item) return false;
 
-        if (response.Item["tiles"]) this.Tiles = await JSON.parse(response.Item["tiles"]);
-        if (response.Item["tileBag"]) this.TileBag = await JSON.parse(response.Item["tileBag"]);
+        if (response.Item[dbColTiles]) this.Tiles = await JSON.parse(response.Item[dbColTiles].S as string);
+        if (response.Item[dbColTileBag]) this.TileBag = await JSON.parse(response.Item[dbColTileBag].S as string);
         
         return true;
     }
