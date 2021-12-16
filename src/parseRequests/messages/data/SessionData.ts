@@ -35,7 +35,7 @@ export class SessionData implements IGameData {
             Item: {
                 "gameId": this.GameId
             }
-        }
+        };
 
         if (this.DisplayName) params.Item[dbColDisplayName] = JSON.stringify(this.DisplayName);
         if (this.IsActive) params.Item[dbColIsActive] = JSON.stringify(this.IsActive);
@@ -46,8 +46,31 @@ export class SessionData implements IGameData {
         return db.put(params);
     }
 
-    public getSessionData(db: DynamoDB.DocumentClient): void {
+    public static async GetSessionListForPlayer(db: DynamoDB.DocumentClient, playerId: string): Promise<SessionData[]> {
+        let data: SessionData[] = [];
+        let params: DynamoDB.DocumentClient.QueryInput = {
+            TableName: dbTableName,
+            ExpressionAttributeValues: {
+                ":playerId" : {S: playerId}
+            },
+            KeyConditionExpression: "playerIds contains :playerId"
+        };
+        
+        let response = await db.query(params).promise();
+        if (!response.Items) return [];
 
+        response.Items.forEach((values) => {
+            data.push(new SessionData({
+                GameId: values[dbColGameId],
+                DisplayName: values[dbColDisplayName],
+                IsActive: values[dbColIsActive],
+                PlayerIds: values[dbColPlayerIds],
+                Score: values[dbColScore],
+                TotalDamage: values[dbColTotalDamage]
+            }));
+        });
+
+        return data;
     }
 
     public static async GetGameSessionData(db: DynamoDB.DocumentClient, gameId: string) : Promise<SessionData> {

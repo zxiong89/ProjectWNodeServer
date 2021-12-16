@@ -35,7 +35,9 @@ export default async function parse(request: GameRequest): Promise<string> {
     const result = await cache.requestSaveToDB().promise();
 
     if (result.$response.error) {
-        err.push(JSON.stringify(result.$response.error));
+        let error = JSON.stringify(result.$response.error);
+        console.error(error);
+        err.push(error);
     }
 
     let response: GameResponse = {
