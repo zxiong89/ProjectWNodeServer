@@ -8,7 +8,8 @@ const dbTableName = `projectWGameSessions`;
 const dbColGameId = "gameId";
 const dbColDisplayName = `displayName`;
 const dbColIsActive = `isActive`;
-const dbColPlayerIds = `playerIds`;
+const dbColPlayerOneId = `playerOneId`;
+const dbColPlayerTwoId = `playerTwoId`;
 const dbColScore = `score`;
 const dbColTotalDamage = `totalDamage`;
 
@@ -20,7 +21,8 @@ export class SessionData implements IGameData {
     DisplayName?: string;
     IsActive?: boolean;
 
-    PlayerIds?: string[];
+    PlayerOneId?: string;
+    PlayerTwoId?: string;
 
     Score?: number;
     TotalDamage?: number;
@@ -39,7 +41,8 @@ export class SessionData implements IGameData {
 
         if (this.DisplayName) params.Item[dbColDisplayName] = JSON.stringify(this.DisplayName);
         if (this.IsActive) params.Item[dbColIsActive] = JSON.stringify(this.IsActive);
-        if (this.PlayerIds) params.Item[dbColPlayerIds] = JSON.stringify(this.PlayerIds);
+        if (this.PlayerOneId) params.Item[dbColPlayerOneId] = JSON.stringify(this.PlayerOneId);
+        if (this.PlayerTwoId) params.Item[dbColPlayerTwoId] = JSON.stringify(this.PlayerTwoId);
         if (this.Score) params.Item[dbColScore] = JSON.stringify(this.Score);
         if (this.TotalDamage) params.Item[dbColTotalDamage] = JSON.stringify(this.TotalDamage);
 
@@ -48,27 +51,32 @@ export class SessionData implements IGameData {
 
     public static async GetSessionListForPlayer(db: DynamoDB.DocumentClient, playerId: string): Promise<SessionData[]> {
         let data: SessionData[] = [];
-        let params: DynamoDB.DocumentClient.QueryInput = {
+        let params: DynamoDB.DocumentClient.ScanInput = {
             TableName: dbTableName,
+            FilterExpression: "playerOneId = :id or playerTwoId = :id",
             ExpressionAttributeValues: {
-                ":playerId" : {S: playerId}
-            },
-            KeyConditionExpression: "playerIds contains :playerId"
+                ":id" : playerId //us-east-2:b5845163-19e0-4bb1-b391-6f40f0d99458
+            }
         };
-        
-        let response = await db.query(params).promise();
-        if (!response.Items) return [];
 
-        response.Items.forEach((values) => {
-            data.push(new SessionData({
-                GameId: values[dbColGameId],
-                DisplayName: values[dbColDisplayName],
-                IsActive: values[dbColIsActive],
-                PlayerIds: values[dbColPlayerIds],
-                Score: values[dbColScore],
-                TotalDamage: values[dbColTotalDamage]
-            }));
-        });
+        let response;
+        do {
+            response = await db.scan(params).promise();
+
+            response.Items?.forEach((values) => {
+                data.push(new SessionData({
+                    GameId: values[dbColGameId],
+                    DisplayName: values[dbColDisplayName],
+                    IsActive: values[dbColIsActive],
+                    PlayerOneId: values[dbColPlayerOneId],
+                    PlayerTwoId: values[dbColPlayerTwoId],
+                    Score: values[dbColScore],
+                    TotalDamage: values[dbColTotalDamage]
+                }));
+            });
+            
+            params.ExclusiveStartKey = response.LastEvaluatedKey;
+        } while (params.ExclusiveStartKey);
 
         return data;
     }
@@ -98,10 +106,8 @@ export class SessionData implements IGameData {
 
         let sessionData = new SessionData({
             GameId: gameId,
-            PlayerIds: [
-                userId,
-                opponentId
-            ],
+            PlayerOneId: userId,
+            PlayerTwoId: opponentId,
             IsActive: true,
             Score: 0,
             TotalDamage: 0
@@ -118,7 +124,8 @@ function convertGetItemOutput(data: GetItemOutput, sessionData: SessionData, onl
     if (onlyConvertIsActive) return;
 
     if (data.Item[dbColDisplayName]) sessionData.DisplayName = data.Item[dbColDisplayName].S;
-    if (data.Item[dbColPlayerIds]) sessionData.PlayerIds = data.Item[dbColPlayerIds].SS;
+    if (data.Item[dbColPlayerOneId]) sessionData.PlayerOneId = data.Item[dbColPlayerOneId].S;
+    if (data.Item[dbColPlayerTwoId]) sessionData.PlayerTwoId = data.Item[dbColPlayerTwoId].S;
     if (data.Item[dbColScore]) sessionData.Score = Number.parseFloat(data.Item[dbColScore].N as string);
     if (data.Item[dbColTotalDamage]) sessionData.TotalDamage = Number.parseFloat(data.Item[dbColTotalDamage].N as string);
 }

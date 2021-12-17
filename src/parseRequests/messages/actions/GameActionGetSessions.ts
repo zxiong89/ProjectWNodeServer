@@ -1,3 +1,4 @@
+import { arrayBuffer } from "stream/consumers";
 import { BoardCache } from "../../board/BoardCache";
 import { IGameData } from "../data/IGameData";
 import { SessionData } from "../data/SessionData";
@@ -14,8 +15,10 @@ export class GameActionGetSessions implements IGameAction {
         if (!this.Params.UserId)  return `No user id given`;
 
         cache.GameId = this.Params.UserId;
-        let sessionDatas = await SessionData.GetGameSessionData(cache.DB, this.Params.UserId);
-        data.push(sessionDatas);
+        let sessionDatas = await SessionData.GetSessionListForPlayer(cache.DB, this.Params.UserId);
+        sessionDatas.forEach(sess => {
+            data.push(sess);
+        });
 
         return undefined;
     }
