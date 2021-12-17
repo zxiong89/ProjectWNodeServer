@@ -32,6 +32,13 @@ export class GameActionCreate implements IGameAction {
         });
         data.push(boardData);
 
+        const result = await cache.requestSaveToDB().promise();
+
+        if (result.$response.error) {
+            let error = JSON.stringify(result.$response.error);
+            console.error(error);
+            return error;
+        }
         return undefined;
     }
 
