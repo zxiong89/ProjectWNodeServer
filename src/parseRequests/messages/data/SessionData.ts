@@ -1,6 +1,8 @@
 import { AWSError, DynamoDB, Request } from "aws-sdk";
 import { GetItemOutput } from "aws-sdk/clients/dynamodb";
+import { stringify } from "querystring";
 import { IGameData } from "./IGameData";
+import { PlayerData } from "./PlayerData";
 
 const { v4: uuidRand } = require(`uuid`); // v4 - random to hopefully reduce collision
 
@@ -55,7 +57,7 @@ export class SessionData implements IGameData {
             TableName: dbTableName,
             FilterExpression: "playerOneId = :id or playerTwoId = :id",
             ExpressionAttributeValues: {
-                ":id" : playerId //us-east-2:b5845163-19e0-4bb1-b391-6f40f0d99458
+                ":id" : playerId 
             }
         };
 
@@ -63,17 +65,23 @@ export class SessionData implements IGameData {
         do {
             response = await db.scan(params).promise();
 
-            response.Items?.forEach((values) => {
-                data.push(new SessionData({
-                    GameId: values[dbColGameId],
-                    DisplayName: values[dbColDisplayName],
-                    IsActive: values[dbColIsActive],
-                    PlayerOneId: values[dbColPlayerOneId],
-                    PlayerTwoId: values[dbColPlayerTwoId],
-                    Score: values[dbColScore],
-                    TotalDamage: values[dbColTotalDamage]
+            if (response.Items) {
+                await Promise.all(response.Items.map(async (item) => {
+                    const opponentId: string = playerId === item[dbColPlayerOneId] ? item[dbColPlayerTwoId] : item[dbColPlayerOneId];
+
+                    const playerData = await PlayerData.GetPlayerData(db, opponentId);
+
+                    data.push(new SessionData({
+                        GameId: item[dbColGameId],
+                        DisplayName: playerData.DisplayName,
+                        IsActive: item[dbColIsActive],
+                        PlayerOneId: item[dbColPlayerOneId],
+                        PlayerTwoId: item[dbColPlayerTwoId],
+                        Score: item[dbColScore],
+                        TotalDamage: item[dbColTotalDamage]
+                    }));
                 }));
-            });
+            }
             
             params.ExclusiveStartKey = response.LastEvaluatedKey;
         } while (params.ExclusiveStartKey);
