@@ -12,6 +12,8 @@ const dbColDisplayName = `displayName`;
 const dbColIsActive = `isActive`;
 const dbColPlayerOneId = `playerOneId`;
 const dbColPlayerTwoId = `playerTwoId`;
+const dbColActivePlayerId = `activePlayerId`;
+const dbColTurnCount = `turnCount`;
 const dbColScore = `score`;
 const dbColTotalDamage = `totalDamage`;
 
@@ -26,6 +28,8 @@ export class SessionData implements IGameData {
     PlayerOneId?: string;
     PlayerTwoId?: string;
 
+    IsMyTurn?: boolean;
+    TurnCount?: number;
     Score?: number;
     TotalDamage?: number;
 
@@ -33,27 +37,32 @@ export class SessionData implements IGameData {
         Object.assign(this, init);
     }
 
-    public saveSessionDataToDB(db: DynamoDB.DocumentClient): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
-        let params: DynamoDB.DocumentClient.PutItemInput = {
+    public saveSessionDataToDB(db: DynamoDB.DocumentClient, isPlayerOne = true): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
+        const params: DynamoDB.DocumentClient.PutItemInput = {
             TableName: dbTableName,
             Item: {
                 "gameId": this.GameId
             }
         };
 
-        if (this.DisplayName) params.Item[dbColDisplayName] = JSON.stringify(this.DisplayName);
-        if (this.IsActive) params.Item[dbColIsActive] = JSON.stringify(this.IsActive);
-        if (this.PlayerOneId) params.Item[dbColPlayerOneId] = JSON.stringify(this.PlayerOneId);
-        if (this.PlayerTwoId) params.Item[dbColPlayerTwoId] = JSON.stringify(this.PlayerTwoId);
-        if (this.Score) params.Item[dbColScore] = JSON.stringify(this.Score);
-        if (this.TotalDamage) params.Item[dbColTotalDamage] = JSON.stringify(this.TotalDamage);
+        if (this.DisplayName) params.Item[dbColDisplayName] = this.DisplayName;
+        if (this.IsActive) params.Item[dbColIsActive] = this.IsActive;
+
+        if (this.PlayerOneId) params.Item[dbColPlayerOneId] = this.PlayerOneId;
+        if (this.PlayerTwoId) params.Item[dbColPlayerTwoId] = this.PlayerTwoId;
+
+        params.Item[dbColActivePlayerId] = (this.IsMyTurn && isPlayerOne) || (!this.IsMyTurn && !isPlayerOne) ? 
+                                            this.PlayerOneId : this.PlayerTwoId;
+        if (this.TurnCount) params.Item[dbColTurnCount] = this.TurnCount;
+        if (this.Score !== undefined) params.Item[dbColScore] = this.Score;
+        if (this.TotalDamage !== undefined) params.Item[dbColTotalDamage] = this.TotalDamage;
 
         return db.put(params);
     }
 
     public static async GetSessionListForPlayer(db: DynamoDB.DocumentClient, playerId: string): Promise<SessionData[]> {
-        let data: SessionData[] = [];
-        let params: DynamoDB.DocumentClient.ScanInput = {
+        const data: SessionData[] = [];
+        const params: DynamoDB.DocumentClient.ScanInput = {
             TableName: dbTableName,
             FilterExpression: "playerOneId = :id or playerTwoId = :id",
             ExpressionAttributeValues: {
@@ -68,8 +77,8 @@ export class SessionData implements IGameData {
             if (response.Items) {
                 await Promise.all(response.Items.map(async (item) => {
                     const opponentId: string = playerId === item[dbColPlayerOneId] ? item[dbColPlayerTwoId] : item[dbColPlayerOneId];
-
                     const playerData = await PlayerData.GetPlayerData(db, opponentId);
+                    const isMyTurn = playerId !== item[dbColActivePlayerId] ? false : true;
 
                     data.push(new SessionData({
                         GameId: item[dbColGameId],
@@ -77,6 +86,8 @@ export class SessionData implements IGameData {
                         IsActive: item[dbColIsActive],
                         PlayerOneId: item[dbColPlayerOneId],
                         PlayerTwoId: item[dbColPlayerTwoId],
+                        IsMyTurn: isMyTurn,
+                        TurnCount: item[dbColTurnCount],
                         Score: item[dbColScore],
                         TotalDamage: item[dbColTotalDamage]
                     }));
@@ -90,14 +101,14 @@ export class SessionData implements IGameData {
     }
 
     public static async GetGameSessionData(db: DynamoDB.DocumentClient, gameId: string) : Promise<SessionData> {
-        let params: DynamoDB.DocumentClient.GetItemInput = {
+        const params: DynamoDB.DocumentClient.GetItemInput = {
             TableName: dbTableName,
             Key: {
                 "gameId": gameId
             }
         };
 
-        let sessionData = new SessionData({
+        const sessionData = new SessionData({
             GameId: gameId
         });
 
@@ -110,13 +121,15 @@ export class SessionData implements IGameData {
     }
 
     public static async CreateGameSessionData(db: DynamoDB.DocumentClient, userId: string, opponentId: string): Promise<SessionData> {
-        let gameId = await createSessionUUID(db);
+        const gameId = await createSessionUUID(db);
 
-        let sessionData = new SessionData({
+        const sessionData = new SessionData({
             GameId: gameId,
             PlayerOneId: userId,
             PlayerTwoId: opponentId,
             IsActive: true,
+            IsMyTurn: true,
+            TurnCount: 1,
             Score: 0,
             TotalDamage: 0
         });
@@ -143,7 +156,7 @@ async function createSessionUUID(db: DynamoDB.DocumentClient): Promise<string> {
     let isActive = true;
 
     do {
-        let sessionData = await SessionData.GetGameSessionData(db, gameId);
+        const sessionData = await SessionData.GetGameSessionData(db, gameId);
         if (sessionData.IsActive) gameId = uuidRand();
         else isActive = false;
     } while (isActive)

@@ -19,7 +19,7 @@ export class GameActionCreate implements IGameAction {
         if (!this.Params.UserId) return undefined;
 
         cache.SessionData = await SessionData.CreateGameSessionData(cache.DB, this.Params.UserId, this.fetchOpponentId());
-        await cache.SessionData.saveSessionDataToDB(cache.DB).promise();
+        await cache.SessionData.saveSessionDataToDB(cache.DB, true).promise();
 
         cache.GameId = cache.SessionData.GameId;
         data.push(cache.SessionData);
