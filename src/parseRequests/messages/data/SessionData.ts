@@ -37,7 +37,11 @@ export class SessionData implements IGameData {
         Object.assign(this, init);
     }
 
-    public saveSessionDataToDB(db: DynamoDB.DocumentClient, isPlayerOne = true): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
+    public GetOpponentId(playerId: string): string {
+        return (playerId === this.PlayerOneId ? this.PlayerTwoId : this.PlayerOneId) as string;
+    }
+
+    public saveSessionDataToDB(db: DynamoDB.DocumentClient, playerId: string): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
         const params: DynamoDB.DocumentClient.PutItemInput = {
             TableName: dbTableName,
             Item: {
@@ -51,8 +55,8 @@ export class SessionData implements IGameData {
         if (this.PlayerOneId) params.Item[dbColPlayerOneId] = this.PlayerOneId;
         if (this.PlayerTwoId) params.Item[dbColPlayerTwoId] = this.PlayerTwoId;
 
-        params.Item[dbColActivePlayerId] = (this.IsMyTurn && isPlayerOne) || (!this.IsMyTurn && !isPlayerOne) ? 
-                                            this.PlayerOneId : this.PlayerTwoId;
+        const opponentId = 
+        params.Item[dbColActivePlayerId] = this.IsMyTurn ? playerId : this.GetOpponentId(playerId);
         if (this.TurnCount) params.Item[dbColTurnCount] = this.TurnCount;
         if (this.Score !== undefined) params.Item[dbColScore] = this.Score;
         if (this.TotalDamage !== undefined) params.Item[dbColTotalDamage] = this.TotalDamage;

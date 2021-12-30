@@ -2,6 +2,8 @@ import { BoardCache } from "../../board/BoardCache";
 import { BoardChangeTypesEnum } from "../data/BoardChangeTypesEnum";
 import { BoardData } from "../data/BoardData";
 import { IGameData } from "../data/IGameData";
+import { PlayerData } from "../data/PlayerData";
+import { CharacterType } from "../data/playerData/CharacterType";
 import { SessionData } from "../data/SessionData";
 import { IGameAction } from "./IGameAction";
 import { GameGetStateParams } from "./params/GameGetStateParams";
@@ -17,18 +19,27 @@ export class GameActionGetState implements IGameAction {
 
         cache.GameId = this.Params.GameId;
         await cache.getGameState();
-        
-        let sessionData = new SessionData({
-            GameId: cache.GameId
-        });
+
+        const db = cache.DB;
+
+        const sessionData = await SessionData.GetGameSessionData(db, cache.GameId);
         data.push(sessionData);
 
         cache.TileBag = cache.TileBag;
-        let boardData = new BoardData({
+        const boardData = new BoardData({
             Board: cache.Tiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
         data.push(boardData);
+
+        const playerId = this.Params.UserId as string;
+        const playerData = await PlayerData.GetPlayerData(db, playerId, CharacterType.Player, this.Params.GameId);
+        data.push(playerData);
+
+        if (cache.SessionData) {
+            const enemyData = await PlayerData.GetPlayerData(db, cache.SessionData.GetOpponentId(playerId), CharacterType.Enemy, this.Params.GameId);
+            data.push(enemyData);
+        }
 
         return undefined;
     }

@@ -7,6 +7,8 @@ import { TileData } from "../data/tiles/TileData";
 import { BoardChangeTypesEnum } from "../data/BoardChangeTypesEnum";
 import { TileBag } from "../../board/TileBag";
 import { BoardCache } from "../../board/BoardCache";
+import { PlayerData } from "../data/PlayerData";
+import { CharacterType } from "../data/playerData/CharacterType";
 
 export class GameActionCreate implements IGameAction {
     private static readonly TEST_USER_1_ID = `us-east-2:b5845163-19e0-4bb1-b391-6f40f0d99458`;
@@ -18,10 +20,13 @@ export class GameActionCreate implements IGameAction {
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         if (!this.Params.UserId) return undefined;
 
-        cache.SessionData = await SessionData.CreateGameSessionData(cache.DB, this.Params.UserId, this.fetchOpponentId());
-        await cache.SessionData.saveSessionDataToDB(cache.DB, true).promise();
+        const db = cache.DB;
+        const opponentId = this.fetchOpponentId();
 
-        cache.GameId = cache.SessionData.GameId;
+        cache.SessionData = await SessionData.CreateGameSessionData(db, this.Params.UserId, opponentId);
+        await cache.SessionData.saveSessionDataToDB(db, this.Params.UserId as string).promise();
+        const gameId = cache.SessionData.GameId as string;
+        cache.GameId = gameId;
         data.push(cache.SessionData);
 
         cache.TileBag = new TileBag();
@@ -39,6 +44,15 @@ export class GameActionCreate implements IGameAction {
             console.error(error);
             return error;
         }
+
+        const playerData = PlayerData.CreateDefaultPlayerData(this.Params.UserId);
+        await playerData.SavePlayerDataForGame(db, gameId).promise();
+        data.push(playerData);
+
+        const enemyData = PlayerData.CreateDefaultPlayerData(opponentId, CharacterType.Enemy);
+        await enemyData.SavePlayerDataForGame(db, gameId).promise();
+        data.push(enemyData);
+        
         return undefined;
     }
 
