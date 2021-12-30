@@ -53,8 +53,8 @@ export class BoardCache {
         let response = await this.DB.get(params).promise();
         if (!response.Item) return false;
 
-        if (response.Item[dbColTiles]) this.Tiles = await JSON.parse(response.Item[dbColTiles].S as string);
-        if (response.Item[dbColTileBag]) this.TileBag = await JSON.parse(response.Item[dbColTileBag].S as string);
+        if (response.Item[dbColTiles]) this.Tiles = await JSON.parse(response.Item[dbColTiles] as string);
+        if (response.Item[dbColTileBag]) this.TileBag = await JSON.parse(response.Item[dbColTileBag] as string);
         
         return true;
     }
