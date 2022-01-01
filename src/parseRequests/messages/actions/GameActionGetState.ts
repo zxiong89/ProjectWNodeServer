@@ -17,12 +17,16 @@ export class GameActionGetState implements IGameAction {
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         if (!this.Params.GameId)  return `No game Id given`;
 
-        cache.GameId = this.Params.GameId;
+        const playerId = this.Params.UserId as string;
+        const gameId = this.Params.GameId;
+        
+        cache.GameId = gameId;
         await cache.getGameState();
 
         const db = cache.DB;
 
-        const sessionData = await SessionData.GetGameSessionData(db, cache.GameId);
+        const sessionData = await SessionData.GetGameSessionData(db, gameId, playerId);
+        cache.SessionData = sessionData;
         data.push(sessionData);
 
         cache.TileBag = cache.TileBag;
@@ -32,12 +36,11 @@ export class GameActionGetState implements IGameAction {
         });
         data.push(boardData);
 
-        const playerId = this.Params.UserId as string;
-        const playerData = await PlayerData.GetPlayerData(db, playerId, CharacterType.Player, this.Params.GameId);
+        const playerData = await PlayerData.GetPlayerData(db, playerId, CharacterType.Player, gameId);
         data.push(playerData);
 
-        if (cache.SessionData) {
-            const enemyData = await PlayerData.GetPlayerData(db, cache.SessionData.GetOpponentId(playerId), CharacterType.Enemy, this.Params.GameId);
+        if (sessionData) {
+            const enemyData = await PlayerData.GetPlayerData(db, sessionData.GetOpponentId(playerId), CharacterType.Enemy, gameId);
             data.push(enemyData);
         }
 

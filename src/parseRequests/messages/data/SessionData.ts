@@ -1,5 +1,7 @@
 import { AWSError, DynamoDB, Request } from "aws-sdk";
-import { GetItemOutput } from "aws-sdk/clients/dynamodb";
+import { AttributeMap, GetItemOutput } from "aws-sdk/clients/dynamodb";
+import { PromiseResult } from "aws-sdk/lib/request";
+import { Session } from "inspector";
 import { stringify } from "querystring";
 import { IGameData } from "./IGameData";
 import { PlayerData } from "./PlayerData";
@@ -54,8 +56,7 @@ export class SessionData implements IGameData {
 
         if (this.PlayerOneId) params.Item[dbColPlayerOneId] = this.PlayerOneId;
         if (this.PlayerTwoId) params.Item[dbColPlayerTwoId] = this.PlayerTwoId;
-
-        const opponentId = 
+        
         params.Item[dbColActivePlayerId] = this.IsMyTurn ? playerId : this.GetOpponentId(playerId);
         if (this.TurnCount) params.Item[dbColTurnCount] = this.TurnCount;
         if (this.Score !== undefined) params.Item[dbColScore] = this.Score;
@@ -82,19 +83,7 @@ export class SessionData implements IGameData {
                 await Promise.all(response.Items.map(async (item) => {
                     const opponentId: string = playerId === item[dbColPlayerOneId] ? item[dbColPlayerTwoId] : item[dbColPlayerOneId];
                     const playerData = await PlayerData.GetPlayerData(db, opponentId);
-                    const isMyTurn = playerId !== item[dbColActivePlayerId] ? false : true;
-
-                    data.push(new SessionData({
-                        GameId: item[dbColGameId],
-                        DisplayName: playerData.DisplayName,
-                        IsActive: item[dbColIsActive],
-                        PlayerOneId: item[dbColPlayerOneId],
-                        PlayerTwoId: item[dbColPlayerTwoId],
-                        IsMyTurn: isMyTurn,
-                        TurnCount: item[dbColTurnCount],
-                        Score: item[dbColScore],
-                        TotalDamage: item[dbColTotalDamage]
-                    }));
+                    data.push(SessionData.CreateSessionData(item[dbColGameId], playerId, item, playerData.DisplayName));
                 }));
             }
             
@@ -104,7 +93,7 @@ export class SessionData implements IGameData {
         return data;
     }
 
-    public static async GetGameSessionData(db: DynamoDB.DocumentClient, gameId: string) : Promise<SessionData> {
+    public static async IsGameSessionActive(db: DynamoDB.DocumentClient, gameId: string) : Promise<boolean> {
         const params: DynamoDB.DocumentClient.GetItemInput = {
             TableName: dbTableName,
             Key: {
@@ -112,16 +101,21 @@ export class SessionData implements IGameData {
             }
         };
 
-        const sessionData = new SessionData({
-            GameId: gameId
-        });
+        const response = await db.get(params).promise();
+        
+        return response.Item ? response.Item[dbColIsActive] : false;
+    }
 
-        await db.get(params, (err, data) => {
-            if (err) console.log(err, err.stack);
-            else convertGetItemOutput(data, sessionData);
-        });
+    public static async GetGameSessionData(db: DynamoDB.DocumentClient, gameId: string, playerId: string) : Promise<SessionData> {
+        const params: DynamoDB.DocumentClient.GetItemInput = {
+            TableName: dbTableName,
+            Key: {
+                "gameId": gameId
+            }
+        };
 
-        return sessionData;
+        const response = await db.get(params).promise();
+        return SessionData.CreateSessionData(gameId, playerId, response.Item);
     }
 
     public static async CreateGameSessionData(db: DynamoDB.DocumentClient, userId: string, opponentId: string): Promise<SessionData> {
@@ -140,19 +134,26 @@ export class SessionData implements IGameData {
 
         return sessionData;
     }
-}
 
-function convertGetItemOutput(data: GetItemOutput, sessionData: SessionData, onlyConvertIsActive = false) {
-    if (!data.Item) return;
+    public static CreateSessionData(gameId: string, playerId: string, item?: AttributeMap, displayName?: string): SessionData {
+        const data = new SessionData();
+        if (!item) return new SessionData();
 
-    if (data.Item[dbColIsActive]) sessionData.IsActive = data.Item[dbColIsActive].BOOL;
-    if (onlyConvertIsActive) return;
+        data.GameId = gameId;
+        if (displayName) data.DisplayName = displayName;
+        if (item[dbColIsActive] !== undefined) data.IsActive = item[dbColIsActive] as boolean;
 
-    if (data.Item[dbColDisplayName]) sessionData.DisplayName = data.Item[dbColDisplayName].S;
-    if (data.Item[dbColPlayerOneId]) sessionData.PlayerOneId = data.Item[dbColPlayerOneId].S;
-    if (data.Item[dbColPlayerTwoId]) sessionData.PlayerTwoId = data.Item[dbColPlayerTwoId].S;
-    if (data.Item[dbColScore]) sessionData.Score = Number.parseFloat(data.Item[dbColScore].N as string);
-    if (data.Item[dbColTotalDamage]) sessionData.TotalDamage = Number.parseFloat(data.Item[dbColTotalDamage].N as string);
+        if (item[dbColPlayerOneId] !== undefined) data.PlayerOneId = item[dbColPlayerOneId] as string;
+        if (item[dbColPlayerTwoId] !== undefined) data.PlayerTwoId = item[dbColPlayerTwoId] as string;
+
+        data.IsMyTurn = playerId !== item[dbColActivePlayerId] ? false : true
+        if (item[dbColTurnCount] !== undefined) data.TurnCount = Number.parseFloat(item[dbColTurnCount] as string);
+        if (item[dbColScore] !== undefined) data.Score = Number.parseFloat(item[dbColScore] as string);
+        if (item[dbColTotalDamage] !== undefined) data.TotalDamage = Number.parseFloat(item[dbColTotalDamage] as string);
+
+        return data;
+    }
+
 }
 
 async function createSessionUUID(db: DynamoDB.DocumentClient): Promise<string> {
@@ -160,9 +161,8 @@ async function createSessionUUID(db: DynamoDB.DocumentClient): Promise<string> {
     let isActive = true;
 
     do {
-        const sessionData = await SessionData.GetGameSessionData(db, gameId);
-        if (sessionData.IsActive) gameId = uuidRand();
-        else isActive = false;
+        isActive = await SessionData.IsGameSessionActive(db, gameId);
+        if (!isActive) gameId = uuidRand();
     } while (isActive)
     return gameId;
 }
