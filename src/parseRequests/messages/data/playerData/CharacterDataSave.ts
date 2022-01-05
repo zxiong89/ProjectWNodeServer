@@ -1,4 +1,5 @@
 import { AWSError, DynamoDB, Request } from "aws-sdk";
+import { PlayerDataChecksum } from "../utils/PlayerDataChecksum";
 import { CharacterType } from "./CharacterType";
 
 const dbTableName = `projectWGamePlayerData`;
@@ -8,12 +9,7 @@ const dbColHealth = `health`;
 const dbColMaxHealth = `maxHealth`;
 const dbColMana = `mana`;
 
-export class CharacterDataSave {
-    Id?: string;
-    Health?: number;
-    MaxHealth?: number;
-    Mana?: number;
-
+export class CharacterDataSave extends PlayerDataChecksum {
     SkillName?: string[];
 
     Type?: CharacterType;
@@ -22,6 +18,7 @@ export class CharacterDataSave {
     //MonsterSpriteName? string; 
 
     constructor(init?: Partial<CharacterDataSave>) {
+        super(init);
         Object.assign(this, init);
     }
 
