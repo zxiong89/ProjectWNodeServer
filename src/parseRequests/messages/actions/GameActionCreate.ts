@@ -23,11 +23,11 @@ export class GameActionCreate implements IGameAction {
         const db = cache.DB;
         const opponentId = this.fetchOpponentId();
 
-        cache.SessionData = await SessionData.CreateGameSessionData(db, this.Params.UserId, opponentId);
-        await cache.SessionData.saveSessionDataToDB(db, this.Params.UserId as string).promise();
-        const gameId = cache.SessionData.GameId as string;
+        const sessionData = await SessionData.CreateGameSessionData(db, this.Params.UserId, opponentId);
+        cache.SessionData = sessionData;
+
+        const gameId = sessionData.GameId as string;
         cache.GameId = gameId;
-        data.push(cache.SessionData);
 
         cache.TileBag = new TileBag();
         cache.Tiles = createGameBoard(this.Params.Rows, this.Params.Cols, cache.TileBag);
@@ -35,21 +35,20 @@ export class GameActionCreate implements IGameAction {
             Board: cache.Tiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
-        data.push(boardData);
-
-        const result = await cache.requestSaveToDB().promise();
-
-        if (result.$response.error) {
-            let error = JSON.stringify(result.$response.error);
-            console.error(error);
-            return error;
-        }
 
         const playerData = PlayerData.CreateDefaultPlayerData(this.Params.UserId);
+        const enemyData = PlayerData.CreateDefaultPlayerData(opponentId, CharacterType.Enemy);
+
+        sessionData.UpdateChecksum(cache, playerData, enemyData);
+        await sessionData.SaveSessionDataToDB(db, this.Params.UserId as string).promise();
+        data.push(sessionData);
+
+        await cache.requestSaveToDB().promise();
+        data.push(boardData);
+
         await playerData.SavePlayerDataForGame(db, gameId).promise();
         data.push(playerData);
 
-        const enemyData = PlayerData.CreateDefaultPlayerData(opponentId, CharacterType.Enemy);
         await enemyData.SavePlayerDataForGame(db, gameId).promise();
         data.push(enemyData);
         

@@ -1,16 +1,17 @@
 import { AWSError, DynamoDB, Request } from "aws-sdk";
-import { AttributeMap, GetItemOutput } from "aws-sdk/clients/dynamodb";
-import { PromiseResult } from "aws-sdk/lib/request";
-import { Session } from "inspector";
-import { stringify } from "querystring";
+import { AttributeMap } from "aws-sdk/clients/dynamodb";
+import { BoardCache } from "../../board/BoardCache";
 import { IGameData } from "./IGameData";
 import { PlayerData } from "./PlayerData";
+import { GameRunStateChecksum } from "./utils/BoardStateChecksum";
+import { ChecksumUtils } from "./utils/ChecksumUtils";
+import { PlayerDataChecksum } from "./utils/PlayerDataChecksum";
 
 const { v4: uuidRand } = require(`uuid`); // v4 - random to hopefully reduce collision
 
 const dbTableName = `projectWGameSessions`;
 const dbColGameId = "gameId";
-const dbColDisplayName = `displayName`;
+const dbColChecksum = `checksum`;
 const dbColIsActive = `isActive`;
 const dbColPlayerOneId = `playerOneId`;
 const dbColPlayerTwoId = `playerTwoId`;
@@ -24,12 +25,13 @@ export class SessionData implements IGameData {
     readonly DataType = SessionData.DATA_TYPE;
 
     GameId?: string;
-    DisplayName?: string;
+    Checksum?: string;
     IsActive?: boolean;
 
     PlayerOneId?: string;
     PlayerTwoId?: string;
 
+    DisplayName?: string;
     IsMyTurn?: boolean;
     TurnCount?: number;
     Score?: number;
@@ -43,7 +45,15 @@ export class SessionData implements IGameData {
         return (playerId === this.PlayerOneId ? this.PlayerTwoId : this.PlayerOneId) as string;
     }
 
-    public saveSessionDataToDB(db: DynamoDB.DocumentClient, playerId: string): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
+    public UpdateChecksum(cache: BoardCache, player: PlayerData, enemy: PlayerData): void {
+        this.Checksum = ChecksumUtils.CalcChecksum(
+            GameRunStateChecksum.CreateGameRunState(cache, this),
+            PlayerDataChecksum.CreatePlayerDataChecksum(player),
+            PlayerDataChecksum.CreatePlayerDataChecksum(enemy)
+        );
+    }
+
+    public SaveSessionDataToDB(db: DynamoDB.DocumentClient, playerId: string): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
         const params: DynamoDB.DocumentClient.PutItemInput = {
             TableName: dbTableName,
             Item: {
@@ -51,7 +61,7 @@ export class SessionData implements IGameData {
             }
         };
 
-        if (this.DisplayName) params.Item[dbColDisplayName] = this.DisplayName;
+        params.Item[dbColChecksum] = this.Checksum;
         if (this.IsActive) params.Item[dbColIsActive] = this.IsActive;
 
         if (this.PlayerOneId) params.Item[dbColPlayerOneId] = this.PlayerOneId;
