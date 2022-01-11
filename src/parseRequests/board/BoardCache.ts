@@ -1,51 +1,60 @@
 import { AWSError, DynamoDB, Request } from "aws-sdk";
 import { WordDictionary } from "../dictionary/wordDictionary";
+import { SessionData } from "../messages/data/SessionData";
 import { TileData } from "../messages/data/tiles/TileData";
 import { TileBag } from "./TileBag";
 
-const gamesTable = `projectWGames`;
+const dbTableName = `projectWGames`;
+const dbColTiles = `tiles`;
+const dbColTileBag = `tileBag`;
 
 export class BoardCache {
-    client: DynamoDB.DocumentClient;
-    gameId?: string;
-    tiles?: TileData[][];
-    tileBag?: TileBag;
+    DB: DynamoDB.DocumentClient;
+    GameId?: string;
+    SessionData?: SessionData;
+    Tiles?: TileData[][];
+    TileBag?: TileBag;
     dictionary?: WordDictionary;
 
     constructor(client: DynamoDB.DocumentClient) {
-        this.client = client;
+        this.DB = client;
     }
 
-    requestSaveToDB(): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
+    public requestSaveToDB(): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
+        if (!this.SessionData || !this.GameId) throw new Error(`Cannot create request to save without gameId`);
+
         let params: DynamoDB.DocumentClient.PutItemInput = {
-            TableName: gamesTable,
+            TableName: dbTableName,
             Item: {
-                "gameId": this.gameId
+                "gameId": this.GameId
             }
         }
 
-        if (this.tiles) params.Item["tiles"] = JSON.stringify(this.tiles);
-        
-        if (this.tileBag) params.Item["tileBag"] = JSON.stringify(this.tileBag);
-
-        return this.client.put(params);
+        this.addBoardCacheToParams(params);
+        return this.DB.put(params);
     }
 
-    async getGameState(): Promise<boolean> {
-        if (!this.gameId) return false;
-        if (this.tiles && this.tileBag) return true;
+    private addBoardCacheToParams(params: DynamoDB.DocumentClient.PutItemInput): void {
+        if (this.Tiles) params.Item[dbColTiles] = JSON.stringify(this.Tiles);
+        if (this.TileBag) params.Item[dbColTileBag] = JSON.stringify(this.TileBag);
+    }
 
-        let response = await this.client.get({
-            TableName: gamesTable,
+    public async getGameState(): Promise<boolean> {
+        if (!this.GameId) return false;
+        if (this.Tiles && this.TileBag) return true;
+
+        let params: DynamoDB.DocumentClient.GetItemInput = {
+            TableName: dbTableName,
             Key: {
-                "gameId": this.gameId
+                "gameId": this.GameId
             }
-        }).promise();
+        };
 
+        let response = await this.DB.get(params).promise();
         if (!response.Item) return false;
 
-        if (response.Item["tiles"]) this.tiles = await JSON.parse(response.Item["tiles"]);
-        if (response.Item["tileBag"]) this.tileBag = await JSON.parse(response.Item["tileBag"]);
+        if (response.Item[dbColTiles]) this.Tiles = await JSON.parse(response.Item[dbColTiles] as string);
+        if (response.Item[dbColTileBag]) this.TileBag = await JSON.parse(response.Item[dbColTileBag] as string);
         
         return true;
     }

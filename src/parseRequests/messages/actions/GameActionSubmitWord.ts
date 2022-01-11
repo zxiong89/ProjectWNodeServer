@@ -23,14 +23,14 @@ export class GameActionSubmitWord implements IGameAction {
         if (!selection) return `Selection is null`;
         if (!matchesWord(selection, word)) return `Selection doesn't match word`;
 
-        if (!cache.gameId) cache.gameId = this.Params.GameId;
+        if (!cache.GameId) cache.GameId = this.Params.GameId;
 
         if (!cache.dictionary) cache.dictionary = new WordDictionary();
         if (!cache.dictionary.words.get(word)) return `Word is not valid`;
 
         const isCacheUpdated = await cache.getGameState();
-        if (!isCacheUpdated) return `Unable to fetch gameState for ${cache.gameId}`;
-        const tileBag = cache.tileBag as TileBag;
+        if (!isCacheUpdated) return `Unable to fetch gameState for ${cache.GameId}`;
+        const tileBag = cache.TileBag as TileBag;
 
         let removal = new BoardData({
             TileDelta: selection,

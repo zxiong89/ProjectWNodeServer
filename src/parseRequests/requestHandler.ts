@@ -1,4 +1,4 @@
-import { GameActionCreate as requestHandler } from "./messages/actions/GameActionCreate";
+import { GameActionCreate, GameActionCreate as requestHandler } from "./messages/actions/GameActionCreate";
 import { GameActionSubmitWord } from "./messages/actions/GameActionSubmitWord";
 import { IGameAction } from "./messages/actions/IGameAction";
 import { IGameData } from "./messages/data/IGameData";
@@ -13,7 +13,7 @@ import { GameActionGetSessions } from "./messages/actions/GameActionGetSessions"
 export default async function parse(request: GameRequest): Promise<string> {
     let data: IGameData[] = [];
 
-    let client = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? 
+    let db = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? 
         new DynamoDB.DocumentClient({ 
             region: "us-east-2",
             credentials: {
@@ -25,17 +25,12 @@ export default async function parse(request: GameRequest): Promise<string> {
         new DynamoDB.DocumentClient({ 
             region: "us-east-2"
         });
-     let err: string[] = [];
+    let err: string[] = [];
      
-    let cache: BoardCache = new BoardCache(client);
+    let cache: BoardCache = new BoardCache(db);
     for(const action of request.Actions) {
         const error = await parseAction(data, action, cache);
         if (error) err.push(error);
-    }
-    const result = await cache.requestSaveToDB().promise();
-
-    if (result.$response.error) {
-        err.push(JSON.stringify(result.$response.error));
     }
 
     let response: GameResponse = {
@@ -58,7 +53,7 @@ async function parseAction(data: IGameData[], action: IGameAction, board: BoardC
 
     switch (action.Name) {
         case requestHandler.MESSAGE_NAME: {
-            let create = new requestHandler(action as requestHandler);
+            let create = new GameActionCreate(action as requestHandler);
             error = await create.parse(data, board);
             break;
         }
