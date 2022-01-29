@@ -16,8 +16,10 @@ export class GameActionSubmitWord implements IGameAction {
     Params: GameSubmitWordParams = {};
     
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
-        let word = this.Params.Word;
-        let selection = this.Params.Selection;
+        const gameId = this.Params.GameId;
+        const playerId = this.Params.UserId;
+        const word = this.Params.Word;
+        const selection = this.Params.Selection;
 
         if (!word) return `Word is null`;
         if (!selection) return `Selection is null`;
@@ -32,7 +34,7 @@ export class GameActionSubmitWord implements IGameAction {
         if (!isCacheUpdated) return `Unable to fetch gameState for ${cache.GameId}`;
         const tileBag = cache.TileBag as TileBag;
 
-        let removal = new BoardData({
+        const removal = new BoardData({
             TileDelta: selection,
             ChangeType: BoardChangeTypesEnum.Remove
         });
@@ -41,7 +43,7 @@ export class GameActionSubmitWord implements IGameAction {
             TileBag.ReturnTileData(tileBag, s.TileData);
         }
 
-        let newTiles: TileDataSelection[] = [];
+        const newTiles: TileDataSelection[] = [];
         for (const s of selection) {
             newTiles.push({
                 Row: s.Row,
@@ -50,16 +52,22 @@ export class GameActionSubmitWord implements IGameAction {
             });
         }
 
-        let addition = new BoardData({
+        const addition = new BoardData({
             TileDelta: newTiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
         data.push(addition);
 
-        let points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
-        let sessionUpdate = new SessionData({
-            Score: points,
-            TotalDamage: points
+        const points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
+        
+        const sessionData = await cache.getSessionData(cache.DB, playerId as string, gameId);
+        sessionData?.addTurn(points);
+
+        const sessionUpdate = new SessionData({
+            TurnCount: sessionData?.TurnCount,
+            Score: sessionData?.Score,
+            TotalDamage: sessionData?.TotalDamage,
+            IsMyTurn: sessionData?.IsMyTurn
         });
         data.push(sessionUpdate);
 

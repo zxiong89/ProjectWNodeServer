@@ -58,4 +58,12 @@ export class BoardCache {
         
         return true;
     }
+    
+    public async getSessionData(db: DynamoDB.DocumentClient, playerId: string, gameId?: string): Promise<SessionData> {
+        if (this.SessionData != undefined) return this.SessionData;
+
+        this.SessionData = await SessionData.GetGameSessionData(db, gameId != undefined ? gameId : this.GameId as string, playerId);
+
+        return this.SessionData;
+    }
 }

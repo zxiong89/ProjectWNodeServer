@@ -45,6 +45,13 @@ export class SessionData implements IGameData {
         return (playerId === this.PlayerOneId ? this.PlayerTwoId : this.PlayerOneId) as string;
     }
 
+    public addTurn(points: number, damage?: number) {
+        if (this.TurnCount != undefined) this.TurnCount++;
+        if (this.Score != undefined) this.Score += points;
+        if (this.TotalDamage != undefined) this.TotalDamage += damage != undefined ? damage : points;
+        if (this.IsMyTurn != undefined)  this.IsMyTurn = !this.IsMyTurn;
+    }
+
     public UpdateChecksum(cache: BoardCache, player: PlayerData, enemy: PlayerData): void {
         this.Checksum = ChecksumUtils.CalcChecksum(
             GameRunStateChecksum.CreateGameRunState(cache, this),
