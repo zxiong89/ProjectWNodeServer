@@ -57,6 +57,7 @@ export class GameActionSubmitWord implements IGameAction {
 
         const sessionData = await cache.getSessionData(cache.DB, playerId, gameId);
         sessionData?.addTurn(points);
+        await sessionData?.UpdateChecksumWithIds(cache, playerId);
 
         await cache.requestSaveToDB().promise();
         await sessionData.SaveSessionDataToDB(cache.DB, playerId).promise();

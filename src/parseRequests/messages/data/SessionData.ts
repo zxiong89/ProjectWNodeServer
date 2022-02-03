@@ -3,6 +3,7 @@ import { AttributeMap } from "aws-sdk/clients/dynamodb";
 import { BoardCache } from "../../board/BoardCache";
 import { IGameData } from "./IGameData";
 import { PlayerData } from "./PlayerData";
+import { CharacterType } from "./playerData/CharacterType";
 import { GameRunStateChecksum } from "./utils/BoardStateChecksum";
 import { ChecksumUtils } from "./utils/ChecksumUtils";
 import { PlayerDataChecksum } from "./utils/PlayerDataChecksum";
@@ -50,6 +51,13 @@ export class SessionData implements IGameData {
         if (this.Score != undefined) this.Score += points;
         if (this.TotalDamage != undefined) this.TotalDamage += damage != undefined ? damage : points;
         if (this.IsMyTurn != undefined)  this.IsMyTurn = !this.IsMyTurn;
+    }
+
+    public async UpdateChecksumWithIds(cache: BoardCache, playerId: string, enemyId?: string): Promise<void> {
+        const opponentId = enemyId == undefined ? await this.GetOpponentId(playerId) : enemyId as string;
+        const p = await PlayerData.GetPlayerData(cache.DB, playerId, CharacterType.Player, this.GameId);
+        const e = await PlayerData.GetPlayerData(cache.DB, opponentId, CharacterType.Enemy, this.GameId);
+        this.UpdateChecksum(cache, p, e);
     }
 
     public UpdateChecksum(cache: BoardCache, player: PlayerData, enemy: PlayerData): void {
