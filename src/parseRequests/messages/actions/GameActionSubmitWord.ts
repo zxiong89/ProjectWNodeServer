@@ -17,7 +17,7 @@ export class GameActionSubmitWord implements IGameAction {
     
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
         const gameId = this.Params.GameId;
-        const playerId = this.Params.UserId;
+        const playerId = this.Params.UserId as string;
         const word = this.Params.Word;
         const selection = this.Params.Selection;
 
@@ -32,6 +32,11 @@ export class GameActionSubmitWord implements IGameAction {
 
         const isCacheUpdated = await cache.getGameState();
         if (!isCacheUpdated) return `Unable to fetch gameState for ${cache.GameId}`;
+        
+        const points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
+        
+        if (points <= 0) return undefined;
+
         const tileBag = cache.TileBag as TileBag;
 
         const removal = new BoardData({
@@ -43,25 +48,18 @@ export class GameActionSubmitWord implements IGameAction {
             TileBag.ReturnTileData(tileBag, s.TileData);
         }
 
-        const newTiles: TileDataSelection[] = [];
-        for (const s of selection) {
-            newTiles.push({
-                Row: s.Row,
-                Col: s.Col,
-                TileData: TileBag.GetRandomTileData(tileBag)
-            });
-        }
-
+        const newTiles = cache.removeAndAddTiles(5, 7, selection);
         const addition = new BoardData({
             TileDelta: newTiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
         data.push(addition);
 
-        const points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
-        
-        const sessionData = await cache.getSessionData(cache.DB, playerId as string, gameId);
+        const sessionData = await cache.getSessionData(cache.DB, playerId, gameId);
         sessionData?.addTurn(points);
+
+        await cache.requestSaveToDB().promise();
+        await sessionData.SaveSessionDataToDB(cache.DB, playerId).promise();
 
         const sessionUpdate = new SessionData({
             TurnCount: sessionData?.TurnCount,
