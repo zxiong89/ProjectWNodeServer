@@ -35,7 +35,14 @@ export class GameActionSubmitWord implements IGameAction {
         
         const points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
         
-        if (points <= 0) return undefined;
+        if (points <= 0) {
+            const sessionUpdate = new SessionData({
+                Score: -1
+            });
+            data.push(sessionUpdate);
+        
+            return undefined;
+        }
 
         const tileBag = cache.TileBag as TileBag;
 
