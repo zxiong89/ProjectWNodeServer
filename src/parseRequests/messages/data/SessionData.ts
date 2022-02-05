@@ -50,14 +50,7 @@ export class SessionData implements IGameData {
         if (this.TurnCount != undefined) this.TurnCount++;
         if (this.Score != undefined) this.Score += points;
         if (this.TotalDamage != undefined) this.TotalDamage += damage != undefined ? damage : points;
-        if (this.IsMyTurn != undefined)  this.IsMyTurn = !this.IsMyTurn;
-    }
-
-    public async UpdateChecksumWithIds(cache: BoardCache, playerId: string, enemyId?: string): Promise<void> {
-        const opponentId = enemyId == undefined ? await this.GetOpponentId(playerId) : enemyId as string;
-        const p = await PlayerData.GetPlayerData(cache.DB, playerId, CharacterType.Player, this.GameId);
-        const e = await PlayerData.GetPlayerData(cache.DB, opponentId, CharacterType.Enemy, this.GameId);
-        this.UpdateChecksum(cache, p, e);
+        if (this.IsMyTurn != undefined)  this.IsMyTurn = this.IsMyTurn;
     }
 
     public UpdateChecksum(cache: BoardCache, player: PlayerData, enemy: PlayerData): void {

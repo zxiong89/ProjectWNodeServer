@@ -9,6 +9,9 @@ import { SessionData } from "../data/SessionData";
 import { TileBag } from "../../board/TileBag";
 import { BoardCache } from "../../board/BoardCache";
 import { WordDictionary } from "../../dictionary/wordDictionary";
+import { PlayerData } from "../data/PlayerData";
+import { CharacterType } from "../data/playerData/CharacterType";
+import { String } from "aws-sdk/clients/cloudsearch";
 
 export class GameActionSubmitWord implements IGameAction {
     static readonly MESSAGE_NAME = "SubmitWord";
@@ -16,7 +19,7 @@ export class GameActionSubmitWord implements IGameAction {
     Params: GameSubmitWordParams = {};
     
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
-        const gameId = this.Params.GameId;
+        const gameId = this.Params.GameId as String;
         const playerId = this.Params.UserId as string;
         const word = this.Params.Word;
         const selection = this.Params.Selection;
@@ -64,16 +67,28 @@ export class GameActionSubmitWord implements IGameAction {
 
         const sessionData = await cache.getSessionData(cache.DB, playerId, gameId);
         sessionData?.addTurn(points);
-        await sessionData?.UpdateChecksumWithIds(cache, playerId);
+
+        const enemyId: string = sessionData.GetOpponentId(playerId);
+        const playerData = await PlayerData.GetPlayerData(cache.DB, playerId, CharacterType.Player, gameId);
+        const enemyData = await PlayerData.GetPlayerData(cache.DB, enemyId, CharacterType.Enemy, gameId);
+        playerData.AddMana(points);
+        const isAlive = enemyData.TakeDamage(points);
+        data.push(playerData);
+        data.push(enemyData);
+        
+        await sessionData?.UpdateChecksum(cache, playerData, enemyData);
 
         await cache.requestSaveToDB().promise();
         await sessionData.SaveSessionDataToDB(cache.DB, playerId).promise();
+        await playerData.SavePlayerDataForGame(cache.DB, gameId).promise();
+        await enemyData.SavePlayerDataForGame(cache.DB, gameId).promise();
 
         const sessionUpdate = new SessionData({
             TurnCount: sessionData?.TurnCount,
             Score: sessionData?.Score,
             TotalDamage: sessionData?.TotalDamage,
-            IsMyTurn: sessionData?.IsMyTurn
+            IsMyTurn: sessionData?.IsMyTurn,
+            IsActive: !isAlive
         });
         data.push(sessionUpdate);
 
