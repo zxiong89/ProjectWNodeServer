@@ -21,12 +21,9 @@ export class BoardCache {
         this.DB = client;
     }
 
-    public removeAndAddTiles(rowCount: number, colCount: number, selection: TileDataSelection[]): TileDataSelection[] {
+    public removeAndAddTiles(selection: TileDataSelection[]): TileDataSelection[] {
         if (this.TileBag == undefined) return [];
         const tileBag = this.TileBag as TileBag;
-
-        const rowCounts: number[] = [];
-        for (let c = 0; c < colCount; c++) rowCounts.push(rowCount);
 
         const newTiles: TileDataSelection[] = [];
         for (const s of selection) {

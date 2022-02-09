@@ -58,7 +58,7 @@ export class GameActionSubmitWord implements IGameAction {
             TileBag.ReturnTileData(tileBag, s.TileData);
         }
 
-        const newTiles = cache.removeAndAddTiles(5, 7, selection);
+        const newTiles = cache.removeAndAddTiles(selection);
         const addition = new BoardData({
             TileDelta: newTiles,
             ChangeType: BoardChangeTypesEnum.Add
