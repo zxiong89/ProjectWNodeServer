@@ -66,15 +66,19 @@ export class GameActionSubmitWord implements IGameAction {
         data.push(addition);
 
         const sessionData = await cache.getSessionData(cache.DB, playerId, gameId);
-        sessionData?.addTurn(points);
+        const damageDealt = sessionData?.addTurn(playerId, points);
 
         const enemyId: string = sessionData.GetOpponentId(playerId);
         const playerData = await PlayerData.GetPlayerData(cache.DB, playerId, CharacterType.Player, gameId);
         const enemyData = await PlayerData.GetPlayerData(cache.DB, enemyId, CharacterType.Enemy, gameId);
         playerData.AddMana(points);
-        const isAlive = enemyData.TakeDamage(points);
-        data.push(playerData);
+
+        let isAlive = true;
+        if (damageDealt < 0) isAlive = playerData.TakeDamage(damageDealt * -1);
+        else if (damageDealt > 0) isAlive = enemyData.TakeDamage(damageDealt);
+
         data.push(enemyData);
+        data.push(playerData);
         
         await sessionData?.UpdateChecksum(cache, playerData, enemyData);
 

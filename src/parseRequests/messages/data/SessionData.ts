@@ -20,6 +20,8 @@ const dbColActivePlayerId = `activePlayerId`;
 const dbColTurnCount = `turnCount`;
 const dbColScore = `score`;
 const dbColTotalDamage = `totalDamage`;
+const dbColPlayerOneRndDmg = `playerOneRoundDamage`;
+const dbColPlayerTwoRndDmg = `playerTwoRoundDamage`;
 
 export class SessionData implements IGameData {
     static readonly DATA_TYPE = "SessionData";
@@ -38,19 +40,36 @@ export class SessionData implements IGameData {
     Score?: number;
     TotalDamage?: number;
 
+    PlayerOneRoundDamage?: number;
+    PlayerTwoRoundDamage?: number;
+
     constructor(init?: Partial<SessionData>) {
         Object.assign(this, init);
+        
     }
 
     public GetOpponentId(playerId: string): string {
         return (playerId === this.PlayerOneId ? this.PlayerTwoId : this.PlayerOneId) as string;
     }
 
-    public addTurn(points: number, damage?: number) {
+    public addTurn(playerId: string, points: number, damage?: number): number {
         if (this.TurnCount != undefined) this.TurnCount++;
         if (this.Score != undefined) this.Score += points;
-        if (this.TotalDamage != undefined) this.TotalDamage += damage != undefined ? damage : points;
+        if (this.TotalDamage != undefined) this.TotalDamage += (damage != undefined ? damage : points);
         if (this.IsMyTurn != undefined)  this.IsMyTurn = !this.IsMyTurn;
+
+        const dmg = damage != undefined ? damage : points;
+        if (this.PlayerOneId === playerId) this.PlayerOneRoundDamage = dmg;
+        else if (this.PlayerTwoId === playerId) this.PlayerTwoRoundDamage = dmg;
+
+        if (this.PlayerOneRoundDamage !== undefined && this.PlayerTwoRoundDamage !== undefined) {
+            const totalDmg = this.PlayerOneRoundDamage - this.PlayerTwoRoundDamage;
+            this.PlayerOneRoundDamage = undefined;
+            this.PlayerTwoRoundDamage = undefined;
+            return this.PlayerOneId === playerId ? totalDmg : totalDmg * -1;
+        }
+
+        return 0;
     }
 
     public UpdateChecksum(cache: BoardCache, player: PlayerData, enemy: PlayerData): void {
@@ -79,6 +98,9 @@ export class SessionData implements IGameData {
         if (this.TurnCount) params.Item[dbColTurnCount] = this.TurnCount;
         if (this.Score !== undefined) params.Item[dbColScore] = this.Score;
         if (this.TotalDamage !== undefined) params.Item[dbColTotalDamage] = this.TotalDamage;
+
+        params.Item[dbColPlayerOneRndDmg] = this.PlayerOneRoundDamage;
+        params.Item[dbColPlayerTwoRndDmg] = this.PlayerTwoRoundDamage;
 
         return db.put(params);
     }
@@ -168,6 +190,9 @@ export class SessionData implements IGameData {
         if (item[dbColTurnCount] !== undefined) data.TurnCount = Number.parseFloat(item[dbColTurnCount] as string);
         if (item[dbColScore] !== undefined) data.Score = Number.parseFloat(item[dbColScore] as string);
         if (item[dbColTotalDamage] !== undefined) data.TotalDamage = Number.parseFloat(item[dbColTotalDamage] as string);
+        
+        if (item[dbColPlayerOneRndDmg] !== undefined) data.PlayerOneRoundDamage = Number.parseFloat(item[dbColPlayerOneRndDmg] as string);
+        if (item[dbColPlayerTwoRndDmg] !== undefined) data.PlayerTwoRoundDamage = Number.parseFloat(item[dbColPlayerTwoRndDmg] as string);
 
         return data;
     }
