@@ -19,15 +19,17 @@ export class GameActionGetState implements IGameAction {
 
         const playerId = this.Params.UserId as string;
         const gameId = this.Params.GameId;
-        
-        cache.GameId = gameId;
-        await cache.getGameState();
 
         const db = cache.DB;
 
         const sessionData = await SessionData.GetGameSessionData(db, gameId, playerId);
         cache.SessionData = sessionData;
         data.push(sessionData);
+        
+        if (this.Params.Checksum == sessionData.Checksum) return undefined; 
+        
+        cache.GameId = gameId;
+        await cache.getGameState();
 
         cache.TileBag = cache.TileBag;
         const boardData = new BoardData({

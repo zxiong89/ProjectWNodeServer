@@ -182,7 +182,7 @@ export class SessionData implements IGameData {
         data.GameId = gameId;
         if (displayName) data.DisplayName = displayName;
         if (item[dbColIsActive] !== undefined) data.IsActive = item[dbColIsActive] as boolean;
-
+        if (item[dbColChecksum] !== undefined) data.Checksum = item[dbColChecksum] as string;
         if (item[dbColPlayerOneId] !== undefined) data.PlayerOneId = item[dbColPlayerOneId] as string;
         if (item[dbColPlayerTwoId] !== undefined) data.PlayerTwoId = item[dbColPlayerTwoId] as string;
 
