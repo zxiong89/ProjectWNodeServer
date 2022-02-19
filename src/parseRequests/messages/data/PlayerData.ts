@@ -20,6 +20,44 @@ export class PlayerData extends CharacterDataSave implements IGameData {
         Object.assign(this, init);
     }
 
+    /**
+     * Heal a player
+     * @param hp amount to heal
+     */
+    public Heal(hp: number): void {
+        this.Health = (this.Health ? this.Health : 0) + hp;
+        if (this.MaxHealth && this.Health > this.MaxHealth) this.Health = this.MaxHealth;
+    }
+
+    /**
+     * Make a player take damage
+     * @param dmg amount of damage to take
+     * @returns True if the player is still alive, false otherwise
+     */
+    public TakeDamage(dmg: number): boolean {
+        this.Health = this.Health ? this.Health - dmg : 0;
+        return this.Health > 0;
+    }
+
+    /**
+     * Adds mana to the player
+     * @param mana amount of mana to add
+     */
+    public AddMana(mana: number): void {
+        this.Mana = (this.Mana ? this.Mana : 0) + mana;
+    }
+
+    /**
+     * Attempts to use the amount of mana
+     * @param mana amount of mana to use
+     * @returns True if the mana was used, false if there wasn't enough mana
+     */
+    public UseMana(mana: number): boolean {
+        if (!this.Mana || this.Mana < mana) return false;
+        this.Mana -= mana;
+        return true;
+    }
+
     public static async GetPlayerData(db: DynamoDB.DocumentClient, playerId: string, type?: CharacterType, gameId?: string): Promise<PlayerData> {
         const params: DynamoDB.DocumentClient.GetItemInput = {
             TableName: dbTableName,

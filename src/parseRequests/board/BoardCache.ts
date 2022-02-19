@@ -2,6 +2,7 @@ import { AWSError, DynamoDB, Request } from "aws-sdk";
 import { WordDictionary } from "../dictionary/wordDictionary";
 import { SessionData } from "../messages/data/SessionData";
 import { TileData } from "../messages/data/tiles/TileData";
+import { TileDataSelection } from "../messages/data/tiles/TileDataSelection";
 import { TileBag } from "./TileBag";
 
 const dbTableName = `projectWGames`;
@@ -12,12 +13,33 @@ export class BoardCache {
     DB: DynamoDB.DocumentClient;
     GameId?: string;
     SessionData?: SessionData;
-    Tiles?: TileData[][];
+    Tiles?: TileData[][]; // access row, col
     TileBag?: TileBag;
     dictionary?: WordDictionary;
 
     constructor(client: DynamoDB.DocumentClient) {
         this.DB = client;
+    }
+
+    public removeAndAddTiles(selection: TileDataSelection[]): TileDataSelection[] {
+        if (this.TileBag == undefined) return [];
+        const tileBag = this.TileBag as TileBag;
+
+        const newTiles: TileDataSelection[] = [];
+        for (const s of selection) {
+            newTiles.push({
+                Row: s.Row,
+                Col: s.Col,
+                TileData: TileBag.GetRandomTileData(tileBag)
+            });
+        }
+
+        const tiles = this.Tiles as TileData[][];
+        for (const t of newTiles) {
+            tiles[t.Row][t.Col] = t.TileData;
+        }
+
+        return newTiles;
     }
 
     public requestSaveToDB(): Request<DynamoDB.DocumentClient.PutItemOutput, AWSError> {
@@ -57,5 +79,13 @@ export class BoardCache {
         if (response.Item[dbColTileBag]) this.TileBag = await JSON.parse(response.Item[dbColTileBag] as string);
         
         return true;
+    }
+    
+    public async getSessionData(db: DynamoDB.DocumentClient, playerId: string, gameId?: string): Promise<SessionData> {
+        if (this.SessionData != undefined) return this.SessionData;
+
+        this.SessionData = await SessionData.GetGameSessionData(db, gameId != undefined ? gameId : this.GameId as string, playerId);
+
+        return this.SessionData;
     }
 }

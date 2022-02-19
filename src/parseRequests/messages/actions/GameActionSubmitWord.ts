@@ -9,6 +9,9 @@ import { SessionData } from "../data/SessionData";
 import { TileBag } from "../../board/TileBag";
 import { BoardCache } from "../../board/BoardCache";
 import { WordDictionary } from "../../dictionary/wordDictionary";
+import { PlayerData } from "../data/PlayerData";
+import { CharacterType } from "../data/playerData/CharacterType";
+import { String } from "aws-sdk/clients/cloudsearch";
 
 export class GameActionSubmitWord implements IGameAction {
     static readonly MESSAGE_NAME = "SubmitWord";
@@ -16,8 +19,10 @@ export class GameActionSubmitWord implements IGameAction {
     Params: GameSubmitWordParams = {};
     
     async parse(data: IGameData[], cache: BoardCache): Promise<string | undefined> {
-        let word = this.Params.Word;
-        let selection = this.Params.Selection;
+        const gameId = this.Params.GameId as String;
+        const playerId = this.Params.UserId as string;
+        const word = this.Params.Word;
+        const selection = this.Params.Selection;
 
         if (!word) return `Word is null`;
         if (!selection) return `Selection is null`;
@@ -30,9 +35,21 @@ export class GameActionSubmitWord implements IGameAction {
 
         const isCacheUpdated = await cache.getGameState();
         if (!isCacheUpdated) return `Unable to fetch gameState for ${cache.GameId}`;
+        
+        const points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
+        
+        if (points <= 0) {
+            const sessionUpdate = new SessionData({
+                Score: -1
+            });
+            data.push(sessionUpdate);
+        
+            return undefined;
+        }
+
         const tileBag = cache.TileBag as TileBag;
 
-        let removal = new BoardData({
+        const removal = new BoardData({
             TileDelta: selection,
             ChangeType: BoardChangeTypesEnum.Remove
         });
@@ -41,25 +58,41 @@ export class GameActionSubmitWord implements IGameAction {
             TileBag.ReturnTileData(tileBag, s.TileData);
         }
 
-        let newTiles: TileDataSelection[] = [];
-        for (const s of selection) {
-            newTiles.push({
-                Row: s.Row,
-                Col: s.Col,
-                TileData: TileBag.GetRandomTileData(tileBag)
-            });
-        }
-
-        let addition = new BoardData({
+        const newTiles = cache.removeAndAddTiles(selection);
+        const addition = new BoardData({
             TileDelta: newTiles,
             ChangeType: BoardChangeTypesEnum.Add
         });
         data.push(addition);
 
-        let points = this.Params.Selection ? scoreSelection(this.Params.Selection) : 0;
-        let sessionUpdate = new SessionData({
-            Score: points,
-            TotalDamage: points
+        const sessionData = await cache.getSessionData(cache.DB, playerId, gameId);
+        const damageDealt = sessionData?.addTurn(playerId, points);
+
+        const enemyId: string = sessionData.GetOpponentId(playerId);
+        const playerData = await PlayerData.GetPlayerData(cache.DB, playerId, CharacterType.Player, gameId);
+        const enemyData = await PlayerData.GetPlayerData(cache.DB, enemyId, CharacterType.Enemy, gameId);
+        playerData.AddMana(points);
+
+        let isAlive = true;
+        if (damageDealt < 0) isAlive = playerData.TakeDamage(damageDealt * -1);
+        else if (damageDealt > 0) isAlive = enemyData.TakeDamage(damageDealt);
+
+        data.push(enemyData);
+        data.push(playerData);
+        
+        await sessionData?.UpdateChecksum(cache, playerData, enemyData);
+
+        await cache.requestSaveToDB().promise();
+        await sessionData.SaveSessionDataToDB(cache.DB, playerId).promise();
+        await playerData.SavePlayerDataForGame(cache.DB, gameId).promise();
+        await enemyData.SavePlayerDataForGame(cache.DB, gameId).promise();
+
+        const sessionUpdate = new SessionData({
+            TurnCount: sessionData?.TurnCount,
+            Score: sessionData?.Score,
+            TotalDamage: sessionData?.TotalDamage,
+            IsMyTurn: sessionData?.IsMyTurn,
+            IsActive: !isAlive
         });
         data.push(sessionUpdate);
 
