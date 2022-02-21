@@ -80,6 +80,7 @@ export class GameActionSubmitWord implements IGameAction {
         data.push(enemyData);
         data.push(playerData);
         
+        sessionData.IsActive = !isAlive;
         await sessionData?.UpdateChecksum(cache, playerData, enemyData);
 
         await cache.requestSaveToDB().promise();
@@ -92,7 +93,7 @@ export class GameActionSubmitWord implements IGameAction {
             Score: sessionData?.Score,
             TotalDamage: sessionData?.TotalDamage,
             IsMyTurn: sessionData?.IsMyTurn,
-            IsActive: !isAlive
+            IsActive: sessionData?.IsActive
         });
         data.push(sessionUpdate);
 

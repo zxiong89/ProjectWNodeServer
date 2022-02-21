@@ -109,9 +109,10 @@ export class SessionData implements IGameData {
         const data: SessionData[] = [];
         const params: DynamoDB.DocumentClient.ScanInput = {
             TableName: dbTableName,
-            FilterExpression: "playerOneId = :id or playerTwoId = :id",
+            FilterExpression: "(playerOneId = :id or playerTwoId = :id) and isActive = :isActive",
             ExpressionAttributeValues: {
-                ":id" : playerId 
+                ":id" : playerId,
+                ":isActive" : true
             }
         };
 
